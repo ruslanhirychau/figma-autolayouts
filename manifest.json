@@ -1,0 +1,15 @@
+{
+  "name": "AutoLayouts",
+  "id": "1222614762966853894",
+  "api": "1.0.0",
+  "main": "code.js",
+  "capabilities": [],
+  "enableProposedApi": false,
+  "editorType": [
+    "figma"
+  ],
+  "menu": [
+    {"name": "Add", "command": "add"},
+    {"name": "Remove", "command": "remove"}
+  ]
+}
