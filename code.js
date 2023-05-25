@@ -1,12 +1,8 @@
+const selectionCount = figma.currentPage.selection.length;
 const nodes = [];
 
 function isFrame(object) {
-  if (
-    object.type === "FRAME" ||
-    object.type === "COMPONENT" ||
-    object.type === "INSTANCE"
-  )
-    return true;
+  if (object.type === "FRAME" || object.type === "COMPONENT") return true;
 
   return false;
 }
@@ -24,7 +20,8 @@ function isCompliant(command, object) {
 
 function frameIt(object) {
   const frame = figma.createFrame();
-  object.parent.appendChild(frame);
+  const objectIndex = object.parent.children.indexOf(object);
+  object.parent.insertChild(objectIndex, frame);
 
   frame.resizeWithoutConstraints(object.width, object.height);
   frame.name = object.name;
@@ -60,32 +57,40 @@ function addAutoLayout(object) {
   return addAutoLayout(frameIt(object));
 }
 
-function updateSelection() {
-  const toSelect = nodes.map((index) => {
-    const node = figma.getNodeById(index.id);
-    const type = index.type;
+function checkSum() {
+  const compliantCount = nodes.filter((object) => object.compliant).length;
 
-    if (
-      type === "FRAME" ||
-      type === "COMPONENT" ||
-      type === "INSTANCE" ||
-      type === "GROUP"
-    )
-      return node;
-    else return figma.getNodeById(node.parent.id);
+  return {
+    validated: compliantCount === selectionCount ? true : false,
+    compliant: compliantCount,
+  };
+}
+
+function updateSelection(command) {
+  const toSelect = nodes.map((object) => {
+    const node = figma.getNodeById(object.id);
+    const type = object.type;
+
+    switch (command) {
+      case "add":
+        if (
+          type !== "FRAME" &&
+          type !== "COMPONENT" &&
+          type !== "INSTANCE" &&
+          type !== "GROUP"
+        )
+          return figma.getNodeById(node.parent.id);
+      case "remove":
+      default:
+        return node;
+    }
   });
 
   figma.currentPage.selection = toSelect;
 }
 
-// Debug ->
-console.clear();
-console.log("Command: " + figma.command);
-console.log("Selection: " + figma.currentPage.selection.length);
-// <- Debug
-
 function main() {
-  if (figma.currentPage.selection.length === 0) {
+  if (selectionCount === 0) {
     if (figma.command === "remove")
       figma.notify(
         "Please select frames or components if you wish to remove auto layout"
@@ -113,31 +118,25 @@ function main() {
     });
   }
 
-  console.log(nodes); // <- Debug
-  updateSelection();
+  updateSelection(figma.command);
 
-  // Close the plugin
-  function isAllCompliant() {
-    const allCompliant = nodes
-      .map((object) => object.compliant)
-      .every((value) => value === true);
-    return allCompliant;
-  }
+  // Notification
+  figma.notify(
+    (() => {
+      const compliant = checkSum().compliant;
 
-  if (figma.command === "remove")
-    figma.notify(
-      true
-        ? "✓ Auto layout has been removed"
-        : "Auto layout was removed from some of the selected objects"
-    );
-  if (figma.command === "add")
-    figma.notify(
-      true
-        ? "✓ Auto layout has been applied"
-        : "Auto layout was applied to only some of the selected objects"
-    );
+      if (checkSum().validated) {
+        if (figma.command === "remove") return `✓ Auto layout has been removed`;
+        if (figma.command === "add") return `✓ Auto layout has been applied`;
+      }
+
+      if (figma.command === "remove")
+        return `Auto layout was removed from ${compliant} of the selected objects`;
+      if (figma.command === "add")
+        return `Auto layout was applied to only ${compliant} of the selected objects`;
+    })()
+  );
 }
-
 main();
 
 figma.closePlugin();
