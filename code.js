@@ -137,6 +137,7 @@ function main() {
     })()
   );
 }
+
 main();
 
 figma.closePlugin();
